@@ -18,15 +18,12 @@ import config
 # 	filename='myapp.log',
 # 	filemode='w')
 
-#从config文件生产myExchange类， 包含ccxt类指针， apikey，交易费率， 初始balance等信息. 不支持okex期货，因为期货的账户权益与现货不同
+#build myExchange class from config.py. don't support okex futures.
 class myExchange(object):
 	@retry
 	def __init__(self,market):
 		self.id=market['id']
-		exec('self.exchange=ccxt.'+self.id+'()')
-		# self.future=False
-		# if self.id=='okex' and (market['symbol'] in ('BTC/USD','LTC/USD')):
-		# 	self.future=True
+		exec('self.exchange=ccxt.'+self.id+'()') #exchange build from ccxt class.
 		self.exchange.apiKey=market['api_key']
 		self.exchange.secret=market['sec_token']
 		self.symbol=market['symbol']
@@ -39,9 +36,6 @@ class myExchange(object):
 	@retry
 	def getBalance(self):
 		currencyPair=re.split(r'/', self.symbol)
-		# if self.future:
-		# 	balance=self.exchange.private_post_future_userinfo()
-		# else:
 		balance=self.exchange.fetchBalance()
 		# logging.debug(balance)
 
@@ -91,17 +85,17 @@ class hedge(object):
 			except Exception as e:
 				logging.error(e)
 
-		self.interval=max(config.interval,300)  #出错重试间隔（毫秒）
-		self.minDiff=config.minDiff #最低差价百分比（%）
-		self.slideP=config.slideP #滑动价百分比(%)
-		self.stopPL=config.stopPL #跌停值, 价格异常
-		self.stopPH=config.stopPH #涨停值，价格异常
-		self.minAmount=max(config.minAmount,0.1) #单笔最小交易数量
-		self.maxAmount=min(config.maxAmount,5) #单笔最大交易数量
-		self.useMarketOrder=config.useMarketOrder #是否使用市价单止损?
-		self.stop_when_loss=config.stop_when_loss #亏损时停止?
-		self.max_loss=config.max_loss #最大亏损额
-		self.maxLagTime=config.maxLagTime #各交易所间行情间隔最大时间, 秒
+		self.interval=max(config.interval,300)  #Tick interval(ms)
+		self.minDiff=config.minDiff #min price difference percent to hedge（%）
+		self.slideP=config.slideP #percent for slide price(%)
+		self.stopPL=config.stopPL #unnormal low price to stop hedge
+		self.stopPH=config.stopPH #unnormal high price to stop hedge
+		self.minAmount=max(config.minAmount,0.1) #min stock amount for each order
+		self.maxAmount=min(config.maxAmount,5) #max stock amount for each order
+		self.useMarketOrder=config.useMarketOrder #if to use market order to cut loss
+		self.stop_when_loss=config.stop_when_loss # if to stop when loss?
+		self.max_loss=config.max_loss #max allowed loss before stop
+		self.maxLagTime=config.maxLagTime #max allow lag time between different exchanges
 
 		return
 
@@ -142,7 +136,7 @@ class hedge(object):
 				logging.error("%s getOrderBook Error: %s",p.id,e)
 		return
 
-	#执行此函数前， 需要先更新交易所账户信息getAllBalance，获取账户balance， 并且更新账户交易所深度信息getAllDepth， 获取交易所orderbook
+	#执行此函数前， 需要先更新交易所账户信息getAllBalance，获取账户balance 
 	def getMaxSpread(self): 
 
 		self._getAllDepth()
